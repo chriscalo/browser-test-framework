@@ -254,7 +254,7 @@ ok 4 - Math operations
 
 ### Should we provide a Node.js bin executable?
 
-We could add a CLI tool that projects can use when they install browser-test-framework as a dependency:
+We could add a CLI tool that projects can use when they install @chriscalo/browser-test-framework as a dependency:
 
 ```json
 {
@@ -266,7 +266,7 @@ We could add a CLI tool that projects can use when they install browser-test-fra
 
 This would allow:
 ```bash
-npm install --save-dev browser-test-framework
+npm install --save-dev @chriscalo/browser-test-framework
 npx browser-test my-tests.html
 ```
 

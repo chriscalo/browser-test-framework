@@ -1,4 +1,4 @@
-# browser-test-framework
+# @chriscalo/browser-test-framework
 
 A minimal test framework for browser-based testing with zero dependencies. Drop it in an HTML file and start testing immediately. No Node.js required, no build step, just `test()` in the browser.
 
@@ -17,7 +17,7 @@ A minimal test framework for browser-based testing with zero dependencies. Drop 
 ### Option 1: NPM (for package management)
 
 ```bash
-npm install browser-test-framework
+npm install @chriscalo/browser-test-framework
 ```
 
 ### Option 2: Direct download
@@ -169,7 +169,7 @@ Custom error class with detailed error information.
   </template>
   
   <!-- Load test framework -->
-  <script src="browser-test-framework/index.js"></script>
+  <script src="node_modules/@chriscalo/browser-test-framework/index.js"></script>
   
   <!-- Write tests -->
   <script>
