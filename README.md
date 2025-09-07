@@ -20,15 +20,21 @@ A minimal test framework for browser-based testing with zero dependencies. Drop 
 npm install @chriscalo/browser-test-framework
 ```
 
-### Option 2: Direct download
+### Option 2: CDN (recommended for prototyping)
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/gh/chriscalo/browser-test-framework@v1.0.0/index.js"></script>
+```
+
+### Option 3: Direct download
 
 Download `index.js` and include it in your HTML:
 
 ```html
-<script src="index.js"></script>
+<script type="module" src="index.js"></script>
 ```
 
-### Option 3: ES Module
+### Option 4: ES Module
 
 ```html
 <script type="module">
@@ -168,8 +174,8 @@ Custom error class with detailed error information.
     </div>
   </template>
   
-  <!-- Load test framework -->
-  <script src="node_modules/@chriscalo/browser-test-framework/index.js"></script>
+  <!-- Load test framework from CDN -->
+  <script type="module" src="https://cdn.jsdelivr.net/gh/chriscalo/browser-test-framework@v1.0.0/index.js"></script>
   
   <!-- Write tests -->
   <script>

@@ -14,7 +14,7 @@ Reference by tag:
 ```html
 <script
   type="module"
-  src="https://cdn.jsdelivr.net/gh/chriscalo/browser-import-export@v0.1.0/index.js"
+  src="https://cdn.jsdelivr.net/gh/chriscalo/browser-test-framework@v1.0.0/index.js"
 ></script>
 ```  
 
@@ -114,10 +114,18 @@ npm install @chriscalo/browser-test-framework
 ```  
 
 ### From the browser
-Load from CDN:  
+Load from CDN (after publishing to npm):  
 ```html
 <script
   type="module"
-  src="https://unpkg.com/@chriscalo/browser-test-framework@0.1.0"
+  src="https://unpkg.com/@chriscalo/browser-test-framework@1.0.0"
+></script>
+```
+
+Or from GitHub directly (available now):  
+```html
+<script
+  type="module"
+  src="https://cdn.jsdelivr.net/gh/chriscalo/browser-test-framework@v1.0.0/index.js"
 ></script>
 ```  
