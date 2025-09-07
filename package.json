@@ -1,5 +1,5 @@
 {
-  "name": "browser-test-framework",
+  "name": "@chriscalo/browser-test-framework",
   "version": "1.0.0",
   "description": "A minimal test framework for browser-based testing with zero dependencies",
   "main": "index.js",
@@ -13,6 +13,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/chriscalo/browser-test-framework.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "engines": {
     "node": ">=14.0.0"
