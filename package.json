@@ -8,7 +8,7 @@
     "test": "node --test --no-warnings index.test.js",
     "start": "npx http-server -p 3000"
   },
-  "author": "",
+  "author": "chris.calo@gmail.com",
   "license": "MIT",
   "repository": {
     "type": "git",
