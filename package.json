@@ -1,0 +1,27 @@
+{
+  "name": "browser-test-framework",
+  "version": "1.0.0",
+  "description": "A minimal test framework for browser-based testing with zero dependencies",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --no-warnings index.test.js",
+    "start": "npx http-server -p 3000"
+  },
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chriscalo/browser-test-framework.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  },
+  "bugs": {
+    "url": "https://github.com/chriscalo/browser-test-framework/issues"
+  },
+  "homepage": "https://github.com/chriscalo/browser-test-framework#readme"
+}

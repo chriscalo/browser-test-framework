@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browser Test Framework - Tests</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    h1 {
+      color: #333;
+    }
+    
+    .status {
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      font-weight: bold;
+    }
+    
+    .status.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status.failure {
+      background: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h1>Browser Test Framework</h1>
+  
+  <div id="status" class="status pending">
+    Tests are running... Check the console for details.
+  </div>
+  
+  <p>Self-tests for the browser test framework. These tests ensure the framework itself works correctly.</p>
+  
+  <!-- Templates for UI testing -->
+  <template id="test-element">
+    <div class="test-content">Test Content</div>
+  </template>
+  
+  <!-- Load the test framework -->
+  <script type="module" src="index.js"></script>
+  
+  <!-- Self tests -->
+  <script type="module">
+    import { test, assert, testRunner, AssertionError, withSandbox } from './index.js';
+    
+    // Override logSummary to update page status
+    const originalLogSummary = testRunner.logSummary.bind(testRunner);
+    testRunner.logSummary = async function() {
+      const result = await originalLogSummary();
+      const statusEl = document.getElementById('status');
+      if (result) {
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ All tests passed!';
+      } else {
+        statusEl.className = 'status failure';
+        statusEl.textContent = '❌ Some tests failed. Check console for details.';
+      }
+      return result;
+    };
+    
+    // Test the test framework itself
+    test("test() function registers tests", () => {
+      const initialLength = testRunner.testQueue.length;
+      test("dummy test", () => {});
+      assert.ok(testRunner.testQueue.length > initialLength);
+    });
+    
+    test("assert.equal works for primitives", () => {
+      assert.equal(1, 1);
+      assert.equal("test", "test");
+      assert.equal(true, true);
+      assert.equal(null, null);
+      assert.equal(undefined, undefined);
+    });
+    
+    test("assert.equal throws on mismatch", () => {
+      let thrown = false;
+      try {
+        assert.equal(1, 2);
+      } catch (e) {
+        thrown = true;
+        assert.ok(e instanceof AssertionError);
+        assert.equal(e.actual, 1);
+        assert.equal(e.expected, 2);
+      }
+      assert.ok(thrown, "Should have thrown AssertionError");
+    });
+    
+    test("assert.deepEqual works for objects", () => {
+      assert.deepEqual({}, {});
+      assert.deepEqual({ a: 1 }, { a: 1 });
+      assert.deepEqual(
+        { a: 1, b: { c: 2 } },
+        { a: 1, b: { c: 2 } }
+      );
+    });
+    
+    test("assert.deepEqual works for arrays", () => {
+      assert.deepEqual([], []);
+      assert.deepEqual([1, 2, 3], [1, 2, 3]);
+      assert.deepEqual(
+        [1, [2, 3]],
+        [1, [2, 3]]
+      );
+    });
+    
+    test("assert.deepEqual detects differences", () => {
+      let thrown = false;
+      try {
+        assert.deepEqual({ a: 1 }, { a: 2 });
+      } catch (e) {
+        thrown = true;
+        assert.ok(e instanceof AssertionError);
+        assert.ok(e.differences.length > 0);
+      }
+      assert.ok(thrown, "Should have thrown for different values");
+    });
+    
+    test("assert.ok passes for truthy values", () => {
+      assert.ok(true);
+      assert.ok(1);
+      assert.ok("string");
+      assert.ok([]);
+      assert.ok({});
+    });
+    
+    test("assert.ok fails for falsy values", () => {
+      let thrown = false;
+      try {
+        assert.ok(false);
+      } catch (e) {
+        thrown = true;
+        assert.ok(e instanceof AssertionError);
+      }
+      assert.ok(thrown, "Should have thrown for false");
+    });
+    
+    test("async tests are supported", async () => {
+      const value = await Promise.resolve(42);
+      assert.equal(value, 42);
+    });
+    
+    test("async tests can fail properly", async () => {
+      // Test that async failures are caught by testing the error directly
+      let thrown = false;
+      try {
+        const value = await Promise.resolve(1);
+        assert.equal(value, 2); // This will throw
+      } catch (e) {
+        thrown = true;
+        assert.ok(e instanceof AssertionError);
+        assert.equal(e.actual, 1);
+        assert.equal(e.expected, 2);
+      }
+      assert.ok(thrown, "Should have thrown for async mismatch");
+    });
+    
+    test("withSandbox creates and cleans up sandbox", async () => {
+      const bodyChildrenBefore = document.body.children.length;
+      
+      await withSandbox(async (sandbox) => {
+        assert.ok(sandbox);
+        assert.ok(document.body.contains(sandbox));
+      });
+      
+      // Sandbox should be removed after
+      assert.equal(document.body.children.length, bodyChildrenBefore);
+    });
+    
+    test.ui("UI tests work with templates", "#test-element", async ({ container }) => {
+      const element = container.querySelector(".test-content");
+      assert.ok(element);
+      assert.equal(element.textContent, "Test Content");
+    });
+    
+    test.ui("UI test sandbox is isolated", "#test-element", async ({ container }) => {
+      // Modify element in sandbox
+      const element = container.querySelector(".test-content");
+      element.textContent = "Modified";
+      assert.equal(element.textContent, "Modified");
+      
+      // Original template should be unchanged
+      const template = document.querySelector("#test-element");
+      const originalContent = template.content.querySelector(".test-content");
+      assert.equal(originalContent.textContent, "Test Content");
+    });
+    
+    test("TestRunner counts tests correctly", () => {
+      const runner = new TestRunner();
+      runner.enqueueTest("test1", () => {});
+      runner.enqueueTest("test2", () => {});
+      assert.equal(runner.testQueue.length, 2);
+    });
+    
+    test("AssertionError provides useful information", () => {
+      const error = new AssertionError("Test message", {
+        actual: 1,
+        expected: 2,
+      });
+      
+      assert.equal(error.message, "Test message");
+      assert.equal(error.actual, 1);
+      assert.equal(error.expected, 2);
+    });
+    
+    test("Framework is available globally", () => {
+      assert.ok(window.test);
+      assert.ok(window.assert);
+      assert.ok(window.TestRunner);
+      assert.ok(window.AssertionError);
+      assert.ok(window.testRunner);
+      assert.ok(window.withSandbox);
+    });
+  </script>
+</body>
+</html>
