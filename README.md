@@ -38,7 +38,7 @@ Download `index.js` and include it in your HTML:
 
 ```html
 <script type="module">
-  import { test, assert } from './index.js';
+  import { test, assert } from "./index.js";
   
   test("my test", () => {
     assert.equal(2 + 2, 4);
@@ -87,8 +87,8 @@ test("deep equality for arrays", () => {
 
 ```javascript
 test("async test support", async () => {
-  const result = await fetch('/api/data').then(r => r.json());
-  assert.equal(result.status, 'success');
+  const result = await fetch("/api/data").then(r => r.json());
+  assert.equal(result.status, "success");
 });
 
 test("promise-based test", async () => {
