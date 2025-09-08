@@ -58,19 +58,19 @@
   
   <!-- Self tests -->
   <script type="module">
-    import { test, assert, testRunner, AssertionError, withSandbox } from './index.js';
+    import { test, assert, testRunner, AssertionError, withSandbox } from "./index.js";
     
     // Override logSummary to update page status
     const originalLogSummary = testRunner.logSummary.bind(testRunner);
     testRunner.logSummary = async function() {
       const result = await originalLogSummary();
-      const statusEl = document.getElementById('status');
+      const statusEl = document.getElementById("status");
       if (result) {
-        statusEl.className = 'status success';
-        statusEl.textContent = '✅ All tests passed!';
+        statusEl.className = "status success";
+        statusEl.textContent = "✅ All tests passed!";
       } else {
-        statusEl.className = 'status failure';
-        statusEl.textContent = '❌ Some tests failed. Check console for details.';
+        statusEl.className = "status failure";
+        statusEl.textContent = "❌ Some tests failed. Check console for details.";
       }
       return result;
     };
