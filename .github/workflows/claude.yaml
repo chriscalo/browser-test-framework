@@ -1,4 +1,14 @@
-name: Claude Code
+# Canonical Claude GitHub Action workflow.
+#
+# Source of truth for the workflow installed across all repos that use the
+# Claude Code Action. Copy this file verbatim to .github/workflows/claude.yaml
+# in each target repo. Use skills/github/sync-claude-action.sh to install or
+# audit drift.
+#
+# Tool policy rationale (allow Bash(*), disallow specific patterns) is
+# documented in skills/github/claude-action.md under "Tool policy".
+
+name: Claude
 
 on:
   issue_comment:
@@ -6,41 +16,35 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    types: [opened, labeled]
   pull_request_review:
     types: [submitted]
 
 jobs:
   claude:
-    if: |
-      (github.event.comment.author_association == 'OWNER' ||
-       github.event.review.author_association == 'OWNER' ||
-       github.event.issue.author_association == 'OWNER') &&
-      ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))))
+    if: github.actor != 'claude[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       issues: write
+      pull-requests: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
-
-      - name: Run Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@v1
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-
-          # Enable full bash access for Claude
-          claude_args: |
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
             --allowedTools "Bash(*)"
+            --disallowedTools
+            "Bash(rm -rf /),Bash(git push --force*),Bash(git push -*f*),Bash(git
+            push * --force*),Bash(git push * -*f*),Bash(git branch -*d
+            *),Bash(git branch -*D *),Bash(git branch --delete *),Bash(gh repo
+            delete *),Bash(gh release delete *),Bash(gh api -X DELETE *),Bash(gh
+            api -X PUT *),Bash(gh api -X PATCH *),Bash(gh api --method DELETE
+            *),Bash(gh api --method PUT *),Bash(gh api --method PATCH
+            *),Bash(npm publish*),Bash(gh secret set*),Bash(gh secret
+            delete*),Bash(gh secret remove*),Bash(gh auth logout*)"
