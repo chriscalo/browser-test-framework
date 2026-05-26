@@ -76,6 +76,107 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      # Install the `upload-image` helper on PATH so the agent can publish
+      # local images and embed the resulting URL in PR/issue markdown
+      # without ever knowing about R2, AWS, endpoints, or account IDs.
+      # See "Embedding images in GitHub markdown" in the prompt for the
+      # agent-facing contract.
+      #
+      # The R2 secrets are exposed here as STEP-LEVEL env (not job-level),
+      # so the subsequent claude-code-action step — where the agent runs
+      # its bash commands — has no R2_*/AWS_* in its environment. The
+      # install step stashes credentials in a private file (mode 600 in
+      # $RUNNER_TEMP) that the helper sources at call time. Running
+      # `env` inside the agent's session reveals nothing about storage.
+      - name: Install upload-image helper
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          # If all three secrets are set, write a private creds file the
+          # helper sources at call time. `printf %q` shell-quotes values
+          # so secrets with special chars round-trip safely. If any
+          # secret is empty (repo hasn't opted into image uploads), skip
+          # the creds file entirely; the helper will see no file and
+          # exit with a clear "not configured" message.
+          creds_file="$RUNNER_TEMP/.upload-image-creds"
+          if [ -n "${R2_ACCOUNT_ID:-}" ] \
+             && [ -n "${R2_ACCESS_KEY_ID:-}" ] \
+             && [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; then
+            umask 077
+            {
+              printf 'AWS_ACCESS_KEY_ID=%q\n'     "$R2_ACCESS_KEY_ID"
+              printf 'AWS_SECRET_ACCESS_KEY=%q\n' "$R2_SECRET_ACCESS_KEY"
+              printf 'AWS_DEFAULT_REGION=auto\n'
+              printf 'R2_ACCOUNT_ID=%q\n'         "$R2_ACCOUNT_ID"
+            } > "$creds_file"
+            chmod 600 "$creds_file"
+          fi
+
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/upload-image" <<'HELPER_EOF'
+          #!/usr/bin/env bash
+          # upload-image — publish a local image and print its public URL.
+          # Usage: upload-image <local-path> [<remote-key>]
+          # If <remote-key> is omitted, generates <repo>/<timestamp>-<basename>.
+          # Exits 0 with URL on stdout, non-zero with reason on stderr.
+          set -euo pipefail
+
+          creds_file="$RUNNER_TEMP/.upload-image-creds"
+          if [ ! -r "$creds_file" ]; then
+            echo "upload-image: not configured on this repo (no R2 secrets)" >&2
+            echo "  fix: run sync-claude-action.sh setup-r2 OWNER/REPO" >&2
+            exit 3
+          fi
+          set -a
+          # shellcheck disable=SC1090
+          source "$creds_file"
+          set +a
+
+          local_path="${1:-}"
+          if [ -z "$local_path" ]; then
+            echo "usage: upload-image <local-path> [<remote-key>]" >&2
+            exit 2
+          fi
+          if [ ! -f "$local_path" ]; then
+            echo "upload-image: file not found: $local_path" >&2
+            exit 2
+          fi
+
+          remote_key="${2:-}"
+          if [ -z "$remote_key" ]; then
+            repo_name="${GITHUB_REPOSITORY##*/}"
+            : "${repo_name:=local}"
+            ts="$(date -u +%Y-%m-%dT%H-%M-%S)"
+            # Sanitize the basename: spaces → dashes, then drop any chars
+            # that aren't URL-safe. Filenames like "Screenshot 2026-05-26
+            # at 14.32.15.png" would otherwise produce a remote key whose
+            # printed URL has literal spaces, breaking the rendered markdown
+            # link. An explicit second-arg <remote-key> is taken as-is.
+            base="$(basename "$local_path" | tr ' ' '-' | tr -cd 'A-Za-z0-9._-')"
+            if [ -z "$base" ]; then base=image; fi
+            remote_key="$repo_name/$ts-$base"
+          fi
+
+          ext="${local_path##*.}"
+          case "${ext,,}" in
+            png)      content_type=image/png ;;
+            jpg|jpeg) content_type=image/jpeg ;;
+            gif)      content_type=image/gif ;;
+            webp)     content_type=image/webp ;;
+            svg)      content_type=image/svg+xml ;;
+            *)        content_type=application/octet-stream ;;
+          esac
+
+          aws s3 cp "$local_path" "s3://img/$remote_key" \
+            --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" \
+            --content-type "$content_type" \
+            >/dev/null
+          echo "https://img.chriscalo.com/$remote_key"
+          HELPER_EOF
+          chmod +x "$RUNNER_TEMP/bin/upload-image"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -181,8 +282,27 @@ jobs:
             With the workflow's concurrency block, runs for the same issue
             are serialized — but per-run branch names are still cheap
             insurance against any edge case.
+            ### Embedding images in GitHub markdown
+            GitHub's web UI lets users paste images into comments, but
+            that upload endpoint isn't reachable from CI. To embed an
+            image anywhere GitHub renders markdown (PR comments, issue
+            comments, PR descriptions, etc.), run the `upload-image`
+            helper already on PATH:
+            ```sh
+            url=$(upload-image path/to/local.png)
+            ```
+            Then embed the URL with standard markdown:
+            `![alt text]($url)`. The helper handles everything — storage,
+            content-type, naming, public URL construction — and prints
+            only the URL on stdout when it succeeds. You don't need to
+            know or set any storage credentials.
+            If `upload-image` exits non-zero with "not configured on this
+            repo", image hosting isn't set up here — post your reply
+            without the image (or describe what it would have shown).
+            For any other non-zero exit, surface the stderr so the human
+            can fix the configuration.
           claude_args: >-
-            --allowedTools "Read,Grep,Glob,Edit,Write,Task,Agent,Bash(*),WebFetch,WebSearch"
+            --allowedTools "Read,Grep,Glob,Edit,Write,Skill,Task,Agent,Bash(*),WebFetch,WebSearch"
             --disallowedTools
             "Bash(rm -rf /),Bash(git push --force*),Bash(git push -*f*),Bash(git
             push * --force*),Bash(git push * -*f*),Bash(git branch -*d
